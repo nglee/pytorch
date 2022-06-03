@@ -907,6 +907,7 @@ def merge(pr_num: int, repo: GitRepo, dry_run: bool = False, timeout_minutes: in
     start_time = time.time()
     last_exception = ''
     elapsed_time = 0.0
+
     while elapsed_time < timeout_minutes * 60:
         current_time = time.time()
         elapsed_time = current_time - start_time
@@ -918,10 +919,13 @@ def merge(pr_num: int, repo: GitRepo, dry_run: bool = False, timeout_minutes: in
             print(f"Merged failed due to: {ex}. Retrying in 60 seconds.")
             time.sleep(60)
         except MandatoryChecksNotRunError as ex:
-            print(f"Merged failed due to: {ex}. Retrying in 60 seconds.")
             # Wait for 10 minutes for jobs to kick off before assuming they aren't run
             if elapsed_time > 10 * 60:
                 raise ex
+            last_exception = str(ex)
+            print(f"Merged failed due to: {ex}. Retrying in 60 seconds.")
+            time.sleep(60)
+
 
     # Finally report timeout back
     msg = f"Merged timed out after {timeout_minutes} minutes. Please contact the pytorch_dev_infra team."
