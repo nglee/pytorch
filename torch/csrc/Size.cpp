@@ -55,10 +55,17 @@ PyObject * THPSize_NewFromSymSizes(const at::Tensor& self_)
     for (auto i: c10::irange(sym_sizes.size())) {
       auto si = sym_sizes[i];
       if (si.is_symbolic()) {
+        TORCH_CHECK(!torch::jit::tracer::isTracing(), "JIT Tracing of SymInts isn't supported");
         auto py_symint = py::cast(si.toSymbolicIntNode()).release().ptr();
         PyTuple_SET_ITEM(ret.get(), i, py_symint);
       } else {
-        PyTuple_SET_ITEM(ret.get(), i, THPUtils_packInt64(si.expect_int()));
+        if (torch::jit::tracer::isTracing()) {
+          PyObject *py_size_tensor = THPVariable_Wrap(torch::jit::tracer::getSizeOf(self_, i));
+          if (!py_size_tensor) throw python_error();
+          PyTuple_SET_ITEM(ret.get(), i, py_size_tensor);
+        } else {
+          PyTuple_SET_ITEM(ret.get(), i, THPUtils_packInt64(si.data()));
+        }
       }
     }
     return ret.release();
